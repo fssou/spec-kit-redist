@@ -1,0 +1,84 @@
+name: Sync, Build and Publish from upstream release
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: "New package name to set in pyproject.toml"
+        required: true
+        default: "fssou-spec-kit"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  sync-build-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fetch latest upstream release metadata
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = await github.rest.repos.getLatestRelease({
+              owner: 'github',
+              repo: 'spec-kit'
+            });
+            core.setOutput('tag', release.data.tag_name);
+            core.setOutput('tarball_url', release.data.tarball_url);
+
+      - name: Download and extract release source
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work
+          curl -fsSL "${{ steps.release.outputs.tarball_url }}" -o work/release.tar.gz
+          tar -xzf work/release.tar.gz -C work
+          SRC_DIR="$(find work -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          echo "source_dir=$SRC_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Rename package in pyproject.toml
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYPROJECT="${{ steps.prepare.outputs.source_dir }}/pyproject.toml"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+
+          pyproject = Path(os.environ["PYPROJECT"])
+          package_name = os.environ["PACKAGE_NAME"]
+          content = pyproject.read_text(encoding="utf-8")
+          updated = re.sub(r'(?m)^name\s*=\s*"[^"]+"', f'name = "{package_name}"', content, count=1)
+          if updated == content:
+              raise SystemExit("Could not find package name in pyproject.toml")
+          pyproject.write_text(updated, encoding="utf-8")
+          PY
+        env:
+          PYPROJECT: ${{ steps.prepare.outputs.source_dir }}/pyproject.toml
+          PACKAGE_NAME: ${{ github.event.inputs.package_name }}
+
+      - name: Sync dependencies with uv
+        working-directory: ${{ steps.prepare.outputs.source_dir }}
+        run: uv sync
+
+      - name: Build package with uv
+        working-directory: ${{ steps.prepare.outputs.source_dir }}
+        run: uv build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ steps.prepare.outputs.source_dir }}/dist
