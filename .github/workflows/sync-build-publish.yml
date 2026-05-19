@@ -2,6 +2,8 @@ name: Sync, Build and Publish from upstream release
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"
 
 permissions:
   contents: read
