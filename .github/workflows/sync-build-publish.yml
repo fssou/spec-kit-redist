@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  attestations: write
 
 jobs:
   sync-build-publish:
@@ -18,6 +19,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      attestations: write
 
     steps:
       - name: Fetch latest upstream release metadata
@@ -80,6 +82,11 @@ jobs:
       - name: Build package with uv
         working-directory: ${{ steps.prepare.outputs.source_dir }}
         run: uv build
+
+      - name: Gerar Atestado de Procedência
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ steps.prepare.outputs.source_dir }}/dist/*
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
