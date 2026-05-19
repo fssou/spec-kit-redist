@@ -53,6 +53,45 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
 
+      - name: Merge pyproject override
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir tomli-w
+          python - <<'PY'
+          from __future__ import annotations
+
+          from pathlib import Path
+          import os
+          import tomllib
+          import tomli_w
+
+          override_path = Path(os.environ["OVERRIDE_PATH"])
+          pyproject_path = Path(os.environ["PYPROJECT"])
+
+          override_data = tomllib.loads(override_path.read_text(encoding="utf-8"))
+          pyproject_data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+
+          def merge_dicts(base: dict, override: dict) -> dict:
+              merged = dict(base)
+              for key, value in override.items():
+                  if (
+                      key in merged
+                      and isinstance(merged[key], dict)
+                      and isinstance(value, dict)
+                  ):
+                      merged[key] = merge_dicts(merged[key], value)
+                  else:
+                      merged[key] = value
+              return merged
+
+          merged = merge_dicts(pyproject_data, override_data)
+          pyproject_path.write_text(tomli_w.dumps(merged), encoding="utf-8")
+          PY
+        env:
+          OVERRIDE_PATH: ${{ github.workspace }}/pyproject-override.toml
+          PYPROJECT: ${{ steps.prepare.outputs.source_dir }}/pyproject.toml
+
       - name: Rename package in pyproject.toml
         shell: bash
         run: |
