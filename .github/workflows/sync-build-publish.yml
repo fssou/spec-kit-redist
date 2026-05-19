@@ -2,11 +2,6 @@ name: Sync, Build and Publish from upstream release
 
 on:
   workflow_dispatch:
-    inputs:
-      package_name:
-        description: "New package name to set in pyproject.toml"
-        required: true
-        default: "spec-kit-mirror"
 
 permissions:
   contents: read
@@ -91,28 +86,6 @@ jobs:
         env:
           OVERRIDE_PATH: ${{ github.workspace }}/pyproject-override.toml
           PYPROJECT: ${{ steps.prepare.outputs.source_dir }}/pyproject.toml
-
-      - name: Rename package in pyproject.toml
-        shell: bash
-        run: |
-          set -euo pipefail
-          PYPROJECT="${{ steps.prepare.outputs.source_dir }}/pyproject.toml"
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          import os
-
-          pyproject = Path(os.environ["PYPROJECT"])
-          package_name = os.environ["PACKAGE_NAME"]
-          content = pyproject.read_text(encoding="utf-8")
-          updated = re.sub(r'(?m)^name\s*=\s*"[^"]+"', f'name = "{package_name}"', content, count=1)
-          if updated == content:
-              raise SystemExit("Could not find package name in pyproject.toml")
-          pyproject.write_text(updated, encoding="utf-8")
-          PY
-        env:
-          PYPROJECT: ${{ steps.prepare.outputs.source_dir }}/pyproject.toml
-          PACKAGE_NAME: ${{ github.event.inputs.package_name }}
 
       - name: Sync dependencies with uv
         working-directory: ${{ steps.prepare.outputs.source_dir }}
