@@ -50,6 +50,9 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
 
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
       - name: Merge pyproject override
         shell: bash
         run: |
