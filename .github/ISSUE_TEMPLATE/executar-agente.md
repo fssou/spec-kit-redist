@@ -1,13 +1,9 @@
 ---
 name: Executar agente
-about: Disparar o workflow agêntico via issue
+about: Dispara e redistribui a release mais recente lançada pelo upstream
 title: "[Agente] Executar tarefa"
 labels:
   - trigger-agent
 ---
 
-## Objetivo
-Descreva aqui a tarefa que o agente deve executar.
-
-## Contexto
-Adicione informações relevantes, links e restrições.
+Esta issue somente dispara e redistribui a release mais recente lançada pelo upstream.
