@@ -19,6 +19,17 @@ jobs:
       attestations: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
       - name: Fetch latest upstream release metadata
         id: release
         uses: actions/github-script@v7
@@ -41,17 +52,6 @@ jobs:
           tar -xzf work/release.tar.gz -C work
           SRC_DIR="$(find work -mindepth 1 -maxdepth 1 -type d | head -n 1)"
           echo "source_dir=$SRC_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Checkout repository
-        uses: actions/checkout@v5
 
       - name: Merge pyproject override
         shell: bash
