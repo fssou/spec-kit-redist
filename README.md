@@ -18,6 +18,14 @@ Isso permite que o componente seja submetido com facilidade a ferramentas automa
 
 ## Instalação
 
+Recomendamos o uso do `uv` para isolar o pacote e o binário em um ambiente gerenciado.
+
+```bash
+uv tool install spec-kit-redist
+```
+
+Se preferir usar `pip` diretamente:
+
 ```bash
 pip install spec-kit-redist
 ```
