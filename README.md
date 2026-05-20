@@ -1,6 +1,6 @@
 # spec-kit-redist
 
-Redistribuição do `spec-kit` do GitHub para o **PyPI**.
+Redistribuição do [`spec-kit`](https://github.com/github/spec-kit) do GitHub para o **PyPI**.
 
 Este repositório existe para publicar o pacote em um formato nativo do ecossistema Python, com distribuição via `pip` e integração direta com fluxos corporativos de governança, segurança e conformidade.
 
@@ -18,7 +18,7 @@ Isso permite que o componente seja submetido com facilidade a ferramentas automa
 
 ## Instalação
 
-Recomendamos o uso do `uv` para isolar o pacote e o binário em um ambiente gerenciado.
+Recomendamos o uso do [`uv`](https://docs.astral.sh/uv/) para isolar o pacote e o binário em um ambiente gerenciado.
 
 ```bash
 uv tool install spec-kit-redist
@@ -32,6 +32,6 @@ pip install spec-kit-redist
 
 ## Disclaimer
 
-Este projeto é uma redistribuição do `spec-kit` original. Todos os direitos, marcas, autoria e o código-fonte original pertencem aos mantenedores do `spec-kit` do GitHub.
+Este projeto é uma redistribuição do [`spec-kit`](https://github.com/github/spec-kit) original. Todos os direitos, marcas, autoria e o código-fonte original pertencem aos mantenedores do `spec-kit` do GitHub.
 
 Este repositório não reivindica propriedade sobre o projeto upstream; ele existe apenas para ampliar a disponibilidade do pacote por meio do PyPI.
