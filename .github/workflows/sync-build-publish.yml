@@ -26,6 +26,9 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+    outputs:
+      release_tag: ${{ steps.release.outputs.tag }}
+      already_on_pypi: ${{ steps.pypi.outputs.exists }}
 
     steps:
       - name: Checkout repository
@@ -51,8 +54,36 @@ jobs:
             core.setOutput('tag', release.data.tag_name);
             core.setOutput('tarball_url', release.data.tarball_url);
 
+      - name: Check if release version already exists on PyPI
+        id: pypi
+        shell: bash
+        env:
+          PACKAGE_NAME: spec-kit-redist
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${RELEASE_TAG#v}"
+          PYPI_URL="https://pypi.org/pypi/${PACKAGE_NAME}/json"
+
+          if curl -fsSL "$PYPI_URL" -o /tmp/pypi-package.json; then
+            EXISTS=$(python -c 'from __future__ import annotations
+
+import json
+import sys
+
+version = sys.argv[1]
+with open("/tmp/pypi-package.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+print("true" if version in data.get("releases", {}) else "false")' "$VERSION")
+            echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download and extract release source
         id: prepare
+        if: steps.pypi.outputs.exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -63,6 +94,7 @@ jobs:
           echo "source_dir=$SRC_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Merge pyproject override
+        if: steps.pypi.outputs.exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -102,19 +134,23 @@ jobs:
           PYPROJECT: ${{ steps.prepare.outputs.source_dir }}/pyproject.toml
 
       - name: Sync dependencies with uv
+        if: steps.pypi.outputs.exists != 'true'
         working-directory: ${{ steps.prepare.outputs.source_dir }}
         run: uv sync
 
       - name: Build package with uv
+        if: steps.pypi.outputs.exists != 'true'
         working-directory: ${{ steps.prepare.outputs.source_dir }}
         run: uv build
 
       - name: Gerar Atestado de Procedência
+        if: steps.pypi.outputs.exists != 'true'
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: ${{ steps.prepare.outputs.source_dir }}/dist/*
 
       - name: Publish package to PyPI
+        if: steps.pypi.outputs.exists != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: ${{ steps.prepare.outputs.source_dir }}/dist
@@ -140,21 +176,34 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RESULT: ${{ needs.sync-build-publish.result }}
+          RELEASE_TAG: ${{ needs.sync-build-publish.outputs.release_tag }}
+          ALREADY_ON_PYPI: ${{ needs.sync-build-publish.outputs.already_on_pypi }}
         run: |
           set -euo pipefail
 
-          if [ "$RESULT" = "success" ]; then
+          if [ "${ALREADY_ON_PYPI:-false}" = "true" ]; then
+            STATUS="JÁ PUBLICADO NO PYPI"
+            ICON="ℹ️"
+            BODY=$(printf '%s\n\nRelease upstream: %s\nRun: %s\nResultado do job: %s\n' \
+              "$ICON A versão **${RELEASE_TAG#v}** já estava publicada no PyPI. Workflow encerrado sem publicar novamente." \
+              "${RELEASE_TAG:-não informada}" \
+              "$RUN_URL" \
+              "$RESULT")
+          elif [ "$RESULT" = "success" ]; then
             STATUS="SUCESSO"
             ICON="✅"
+            BODY=$(printf '%s\n\nRun: %s\nResultado do job: %s\n' \
+              "$ICON A execução terminou com **$STATUS**." \
+              "$RUN_URL" \
+              "$RESULT")
           else
             STATUS="FALHOU"
             ICON="❌"
+            BODY=$(printf '%s\n\nRun: %s\nResultado do job: %s\n' \
+              "$ICON A execução terminou com **$STATUS**." \
+              "$RUN_URL" \
+              "$RESULT")
           fi
-
-          BODY=$(printf '%s\n\nRun: %s\nResultado do job: %s\n' \
-            "$ICON A execução terminou com **$STATUS**." \
-            "$RUN_URL" \
-            "$RESULT")
 
           gh issue comment "$ISSUE_NUMBER" --body "$BODY"
 
