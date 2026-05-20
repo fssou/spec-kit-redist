@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 8 * * *"
+  issues:
+    types:
+      - opened
 
 permissions:
   contents: read
@@ -12,6 +15,12 @@ permissions:
 
 jobs:
   sync-build-publish:
+    if: >
+      github.event_name != 'issues' ||
+      (
+        contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) &&
+        contains(github.event.issue.labels.*.name, 'trigger-agent')
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,3 +118,44 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: ${{ steps.prepare.outputs.source_dir }}/dist
+
+  issue-close-and-comment:
+    if: >
+      always() &&
+      github.event_name == 'issues' &&
+      contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) &&
+      contains(github.event.issue.labels.*.name, 'trigger-agent')
+    needs: sync-build-publish
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Comment on issue and close it
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULT: ${{ needs.sync-build-publish.result }}
+        run: |
+          set -euo pipefail
+
+          if [ "$RESULT" = "success" ]; then
+            STATUS="SUCESSO"
+            ICON="✅"
+          else
+            STATUS="FALHOU"
+            ICON="❌"
+          fi
+
+          BODY=$(printf '%s\n\nRun: %s\nResultado do job: %s\n' \
+            "$ICON A execução terminou com **$STATUS**." \
+            "$RUN_URL" \
+            "$RESULT")
+
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY"
+
+          gh issue close "$ISSUE_NUMBER"
