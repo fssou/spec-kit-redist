@@ -66,19 +66,16 @@ jobs:
           PYPI_URL="https://pypi.org/pypi/${PACKAGE_NAME}/json"
 
           if curl -fsSL "$PYPI_URL" -o /tmp/pypi-package.json; then
-            EXISTS=$(python - "$VERSION" <<'PY'
-            from __future__ import annotations
+            EXISTS=$(python -c 'from __future__ import annotations
 
-            import json
-            import sys
+import json
+import sys
 
-            version = sys.argv[1]
-            with open("/tmp/pypi-package.json", "r", encoding="utf-8") as f:
-                data = json.load(f)
+version = sys.argv[1]
+with open("/tmp/pypi-package.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
 
-            print("true" if version in data.get("releases", {}) else "false")
-            PY
-            )
+print("true" if version in data.get("releases", {}) else "false")' "$VERSION")
             echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
