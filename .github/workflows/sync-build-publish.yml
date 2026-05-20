@@ -66,16 +66,7 @@ jobs:
           PYPI_URL="https://pypi.org/pypi/${PACKAGE_NAME}/json"
 
           if curl -fsSL "$PYPI_URL" -o /tmp/pypi-package.json; then
-            EXISTS=$(python -c 'from __future__ import annotations
-
-import json
-import sys
-
-version = sys.argv[1]
-with open("/tmp/pypi-package.json", "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-print("true" if version in data.get("releases", {}) else "false")' "$VERSION")
+            EXISTS=$(python -c 'import json, sys; data = json.load(open("/tmp/pypi-package.json", "r", encoding="utf-8")); print("true" if sys.argv[1] in data.get("releases", {}) else "false")' "$VERSION")
             echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -99,7 +90,7 @@ print("true" if version in data.get("releases", {}) else "false")' "$VERSION")
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check --no-cache-dir tomli-w
-          python - <<'PY'
+          python -c 'import sys, textwrap; exec(textwrap.dedent(sys.stdin.read()))' <<'PY'
           from __future__ import annotations
 
           from pathlib import Path
