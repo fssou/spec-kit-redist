@@ -84,6 +84,24 @@ jobs:
           SRC_DIR="$(find work -mindepth 1 -maxdepth 1 -type d | head -n 1)"
           echo "source_dir=$SRC_DIR" >> "$GITHUB_OUTPUT"
 
+      - name: Patch distribution name used by importlib.metadata
+        if: steps.pypi.outputs.exists != 'true'
+        shell: bash
+        env:
+          SRC_DIR: ${{ steps.prepare.outputs.source_dir }}
+        run: |
+          set -euo pipefail
+          FILE="$SRC_DIR/src/specify_cli/_assets.py"
+
+          # valida se o arquivo existe
+          test -f "$FILE"
+
+          # substitui a distribuição hardcoded
+          sed -i 's/importlib\.metadata\.version("specify-cli")/importlib.metadata.version("spec-kit-redist")/g' "$FILE"
+
+          # sanity check (opcional, mas recomendado)
+          grep -n 'importlib\.metadata\.version("spec-kit-redist")' "$FILE"
+
       - name: Merge pyproject override
         if: steps.pypi.outputs.exists != 'true'
         shell: bash
